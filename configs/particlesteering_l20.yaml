@@ -1,0 +1,94 @@
+# Adapted from AxBench — https://github.com/stanfordnlp/axbench (Apache-2.0).
+# Particle-Steering L20 (Gemma-2-2B, SDL train/infer, max_act calibration)
+
+generate:
+  lm_model: "gpt-4o-mini"
+  output_length: 128
+  num_of_examples: 144
+  concept_path: "particlesteering/data/gemma-2-2b_20-gemmascope-res-16k.json"
+  max_concepts: 500
+  dataset_category: "instruction"
+  master_data_dir: "particlesteering/data"
+  seed: 42
+  keep_orig_axbench_format: true
+
+train:
+  model_name: "google/gemma-2-2b-it"
+  layer: 20
+  component: "res"
+  seed: 42
+  use_bf16: true
+  use_dpo_loss: true
+  use_wandb: false
+  output_length: 512
+  weight_decay: 0.0
+  models:
+    ParticleSteering:
+      batch_size: 4
+      gradient_accumulation_steps: 2
+      n_epochs: 12
+      lr: 0.04
+      weight_decay: 0.0
+      low_rank_dimension: 1
+      intervention_positions: "all"
+      intervention_type: "addition"
+      binarize_dataset: false
+      train_on_negative: true
+      exclude_bos: true
+      loss_type: "dpo"
+      beta: 1.0
+      gemma: 0.0
+      simpo_scaler: 1.0
+      label_smoothing: 0.0
+      reference_free: false
+      dropout: 0.0
+      intervention_positions_dropout: 0.0
+      steering_factors: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.5, 3.0, 4.0, 5.0]
+      randomize_train_steering_factors: true
+      use_unit_norm_steering_vectors: true
+      use_max_act_steering_calibration: true
+      use_sdl_training_intervention: true
+      preference_pairs: ["orig_add"]
+      steering_prompt_type: "blend_in"
+      substraction_type: "normal"
+      num_particles: 10
+      particle_weight_init: orthogonal
+      particle_init_scale_min: 0.01
+      particle_init_scale_max: 0.03
+      particle_validity_mode: mean
+      repulsion_type: rbf
+      repulsion_formulation: additive
+      repulsion_weight: 0.5
+      repulsion_bandwidth: 1.0
+      steer_all_particles: true
+      steering_shared_rng_per_row: false
+
+inference:
+  use_bf16: true
+  models: ["ParticleSteering"]
+  model_name: "google/gemma-2-2b-it"
+  output_length: 128
+  latent_num_of_examples: 36
+  latent_batch_size: 16
+  steering_intervention_type: "addition"
+  steering_model_name: "google/gemma-2-2b-it"
+  steering_datasets: ["AlpacaEval"]
+  steering_batch_size: 4
+  steering_output_length: 128
+  steering_layers: [20]
+  steering_num_of_examples: 5
+  steering_factors: [0, 0.2, 0.6, 1.0, 1.4, 1.8, 2.0, 2.3, 2.6, 3.0, 3.4, 3.8, 4.2, 4.6, 5.0, 6.0, 7.5]
+  master_data_dir: "particlesteering/data"
+  seed: 42
+  lm_model: "gpt-4o-mini"
+  temperature: 1.0
+
+evaluate:
+  models: ["ParticleSteering"]
+  steering_evaluators:
+    - LMJudgeEvaluator
+  num_of_workers: 1
+  lm_model: "gpt-4.1-nano"
+  openai_timeout: 120
+  judge_batch_size: 8
+  master_data_dir: "particlesteering/data"
